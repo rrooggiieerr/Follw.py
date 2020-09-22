@@ -1,4 +1,4 @@
-import os, logging, signal, argparse
+import os, sys, logging, signal, argparse
 import __init__ as IAmHere
 
 logger = logging.getLogger(__name__)
