@@ -7,31 +7,39 @@ ipLocationConfigs = {
   'ipwhois.app': { 'url': 'https://ipwhois.app/json/?objects=latitude,longitude', 'latitudeKey': 'latitude', 'longitudeKey': 'longitude', 'interval': (60*60*24*31)/10000}
 }
 
-coreLocation = False
-if platform.system() == 'Darwin':
-  coreLocation = True
-locationService = False
-if platform.system() == 'Windows':
-  locationService = True
-wifiLocationLookup = True
-ipLocationLookup = True
-ipLocationProvider = 'ip-api.com'
-ipLocationConfig = None
-
 terminate = False
-gpsd = None
 url = None
 interval = 5
-
-previousBSSID = None
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+gpsd = None
 try:
   from gps import *
 except ImportError:
   logger.warning("Python GPSd library not installed")
+
+coreLocation = False
+if platform.system() == 'Darwin':
+  try:
+    import CoreLocation
+    coreLocation = True
+  except ImportError:
+    logger.warning("CoreLocation library not installed")
+    coreLocation = False
+coreLocationManager = None
+
+locationService = False
+if platform.system() == 'Windows':
+  locationService = True
+
+wifiLocationLookup = True
+previousBSSID = None
+
+ipLocationLookup = True
+ipLocationProvider = 'ip-api.com'
+ipLocationConfig = None
 
 def stop(signum = None, frame = None):
   """ Stop the IAmHere process """
@@ -97,8 +105,13 @@ def run():
 
     if location and location != previousLocation:
       try:
-        logger.debug('{}?la={}&lo={}'.format(url, location[0], location[1]))
-        urllib.request.urlopen('{}?la={}&lo={}'.format(url, location[0], location[1]), timeout=1)
+        _url = '{}?la={}&lo={}'.format(url, location[0], location[1])
+        if len(location) >2:
+          _url += '&ac={}'.format(location[2])
+        if len(location) > 3:
+          _url += '&al={}'.format(location[3])
+        logger.debug(_url)
+        urllib.request.urlopen(_url, timeout=1)
         previousLocation = location
       except urllib.error.URLError as e:
         logger.error(e.reason)
@@ -152,8 +165,22 @@ def getGPSLocation():
 
 def getCoreLocationLocation():
   """ Get the location using the macOS Core Location API """
-  if platform.system() == 'Darwin':
-    #ToDo
+  global coreLocation, coreLocationManager
+
+  if platform.system() == 'Darwin' and coreLocation:
+    if not coreLocationManager:
+      coreLocationManager = CoreLocation.CLLocationManager.alloc().init()
+      coreLocationManager.delegate()
+      coreLocationManager.startUpdatingLocation()
+    logger.debug(coreLocationManager.location())
+
+    location = coreLocationManager.location()
+    if location:
+      coord = location.coordinate()
+      logger.debug(location.horizontalAccuracy())
+      return [coord.latitude, coord.longitude, location.horizontalAccuracy()]
+    
+    logger.debug("Core Location could not find your location")
     return None
 
   logger.debug("Core Location not supported")
@@ -163,6 +190,7 @@ def getLocationServiceLocation():
   """ Get the location using the Windows Location Service API """
   if platform.system() == 'Windows':
     #ToDo
+    logger.debug("Location Service not yet implemented")
     return None
 
   logger.debug("Location Service not supported")
@@ -192,24 +220,46 @@ def getWiFiLocation():
     proc.wait()
     output = proc.stdout.read().decode()
     bssids = re.findall("Access Point: ([0-9a-fA-F:]*)", output, re.MULTILINE)
-
     signals = re.findall("Signal level=(-[0-9]*) dBm", output, re.MULTILINE)
 
-    if len(bssids) != 1:
-      logger.warning("More than one AP BSSID detected")
+    if len(bssids) == 0:
+      logger.warning("No AP BSSID detected")
       return None
+    if len(bssids) > 1:
+      logger.warning("More than one AP BSSID detected")
 
-    if len(signals) != 1:
-      logger.warning("More than one AP BSSID detected")
+    if len(signals) == 0:
+      logger.warning("No AP BSSID detected")
       return None
+    if len(signals) > 1:
+      logger.warning("More than one AP BSSID detected")
 
     bssid = bssids[0]
     signal = signals[0]
   elif platform.system() == 'Darwin':
-    #ToDo
-    return None
+    proc = subprocess.Popen(['/System/Library/PrivateFrameworks/Apple80211.framework/Versions/A/Resources/airport', '-I'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    proc.wait()
+    output = proc.stdout.read().decode()
+    bssids = re.findall("^ *BSSID: ([0-9a-fA-F:]*)", output, re.MULTILINE)
+    signals = re.findall("^ *agrCtlRSSI: (-[0-9]*)", output, re.MULTILINE)
+
+    if len(bssids) == 0:
+      logger.warning("No AP BSSID detected")
+      return None
+    if len(bssids) > 1:
+      logger.warning("More than one AP BSSID detected")
+
+    if len(signals) == 0:
+      logger.warning("No AP BSSID detected")
+      return None
+    if len(signals) > 1:
+      logger.warning("More than one AP BSSID detected")
+
+    bssid = bssids[0]
+    signal = signals[0]
   elif platform.system() == 'Windows':
     #ToDo
+    logger.info("WiFi AP location lookup not yet implemented on Windows")
     return None
 
   if bssid and bssid != previousBSSID:
@@ -225,7 +275,7 @@ def getWiFiLocation():
         return [latitude, longitude]
     except urllib.error.HTTPError as e:
       if e.code == 404:
-        logger.debug("Location not found for BSSID {}".format(bssid))
+        logger.debug("No location found for BSSID {}".format(bssid))
       else:
         logger.error(e.code)
     except urllib.error.URLError as e:
