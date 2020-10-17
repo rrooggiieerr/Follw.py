@@ -52,24 +52,24 @@ class IntRange:
       raise argparse.ArgumentTypeError("Must be an integer")
 
     if (self.min is not None and value < self.min):
-      raise argparse.ArgumentTypeError(f"Must be an integer >= {self.min}")
+      raise argparse.ArgumentTypeError("Must be an integer >= {}".format(self.min))
     if (self.max is not None and value > self.max):
-      raise argparse.ArgumentTypeError(f"Must be an integer <= {self.max}")
+      raise argparse.ArgumentTypeError("Must be an integer <= {}".format(self.max))
 
     return value
   
 def main():
   # Read command line arguments
   argparser = argparse.ArgumentParser()
-  argparser.add_argument('url', type=url)
-  argparser.add_argument("-f", "--foreground", dest="foreground", action="store_const", const=True, default=False, help="Run process in the foreground")
-  argparser.add_argument("--oneshot", dest="oneshot", action="store_const", const=True, default=False, help="Submit location only once")
-  argparser.add_argument("-i", "--interval", dest="interval", type=IntRange(0), default=Follw.interval, help="Logging interval in seconds (default: %(default)s)")
-  argparser.add_argument("--wifi", "--enablewifilocationlookup", dest="wifiLocationLookup", action="store_const", const=True, default=False, help="Enable WiFi location lookup if other methods are unsuccessful")
-  argparser.add_argument("--wifilocationprovider", dest="wifiLocationProvider", choices=wifiLocationConfigs.keys(), default=Location.wifiLocationProvider, help="Provider for WiFi location lookup (default: %(default)s)")
-  argparser.add_argument("--wigletoken", dest="wigleToken", default=None, help="Your WiGLE authentication token for WiFi location lookup")
-  argparser.add_argument("--ip", "--enableiplocationlookup", dest="ipLocationLookup", action="store_const", const=True, default=False, help="Enable IP location lookup if other methods are unsuccessful")
-  argparser.add_argument("--iplocationprovider", dest="ipLocationProvider", choices=ipLocationConfigs.keys(), default=Location.ipLocationProvider, help="Provider for IP location lookup (default: %(default)s)")
+  argparser.add_argument('url', type=url, help="your unique Follw.app sharing URL")
+  argparser.add_argument("-f", "--foreground", dest="foreground", action="store_const", const=True, default=False, help="run process in the foreground")
+  argparser.add_argument("--oneshot", dest="oneshot", action="store_const", const=True, default=False, help="submit location only once and exit")
+  argparser.add_argument("-i", "--interval", dest="interval", type=IntRange(0), default=Follw.interval, help="logging interval in seconds (default: %(default)s)")
+  argparser.add_argument("--wifi", "--enablewifilocationlookup", dest="wifiLocationLookup", action="store_const", const=True, default=False, help="enable WiFi location lookup")
+  argparser.add_argument("--wifilocationprovider", dest="wifiLocationProvider", choices=wifiLocationConfigs.keys(), default=Location.wifiLocationProvider, help="provider for WiFi location lookup (default: %(default)s)")
+  argparser.add_argument("--wigletoken", dest="wigleToken", default=None, help="your WiGLE authentication token for WiFi location lookup")
+  argparser.add_argument("--ip", "--enableiplocationlookup", dest="ipLocationLookup", action="store_const", const=True, default=False, help="enable external IP address location lookup")
+  argparser.add_argument("--iplocationprovider", dest="ipLocationProvider", choices=ipLocationConfigs.keys(), default=Location.ipLocationProvider, help="provider for external IP address location lookup (default: %(default)s)")
   args = argparser.parse_args()
 
   foreground = False
