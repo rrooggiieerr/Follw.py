@@ -5,7 +5,7 @@ from Location import Location
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-class IAmHere:
+class Follw:
   terminate = False
   url = None
   interval = 5
@@ -18,8 +18,8 @@ class IAmHere:
     self.location = Location()
 
   def stop(self, signum = None, frame = None):
-    """ Stop the IAmHere process """
-    logger.info("Stopping IAmHere")
+    """ Stop the Follw process """
+    logger.info("Stopping Follw")
     self.terminate = True
     self.location.stop()
 
@@ -30,7 +30,7 @@ class IAmHere:
     self.online = not online
 
   def run(self):
-    """ The main loop of the IAmHere process """
+    """ The main loop of the Follw process """
     previousLocation = None
     _time = 0
     while not self.terminate:
@@ -51,7 +51,7 @@ class IAmHere:
       time.sleep(0.1)
   
     if self.terminate:
-      logger.info("Stopped IAmHere")
+      logger.info("Stopped Follw")
   
   def submitLocation(self, latitude, longitude, accuracy = None, altitude = None, direction = None, speed = None):
     parsedUrl = urllib.parse.urlparse(self.url)

@@ -1,6 +1,6 @@
 import os, sys, logging, signal, argparse, urllib.parse, platform, multiprocessing
 
-from IAmHere import IAmHere
+from Follw import Follw
 from Location import Location, wifiLocationConfigs, ipLocationConfigs
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ def main():
   argparser.add_argument('url', type=url)
   argparser.add_argument("-f", "--foreground", dest="foreground", action="store_const", const=True, default=False, help="Run process in the foreground")
   argparser.add_argument("--oneshot", dest="oneshot", action="store_const", const=True, default=False, help="Submit location only once")
-  argparser.add_argument("-i", "--interval", dest="interval", type=IntRange(0), default=IAmHere.interval, help="Logging interval in seconds (default: %(default)s)")
+  argparser.add_argument("-i", "--interval", dest="interval", type=IntRange(0), default=Follw.interval, help="Logging interval in seconds (default: %(default)s)")
   argparser.add_argument("--wifi", "--enablewifilocationlookup", dest="wifiLocationLookup", action="store_const", const=True, default=False, help="Enable WiFi location lookup if other methods are unsuccessful")
   argparser.add_argument("--wifilocationprovider", dest="wifiLocationProvider", choices=wifiLocationConfigs.keys(), default=Location.wifiLocationProvider, help="Provider for WiFi location lookup (default: %(default)s)")
   argparser.add_argument("--wigletoken", dest="wigleToken", default=None, help="Your WiGLE authentication token for WiFi location lookup")
@@ -90,34 +90,34 @@ def main():
   #else:
   #  logging.basicConfig(filename=logFile, format='%(asctime)s %(levelname)-8s %(name)s.%(funcName)s() %(message)s', datefmt='%x %X', level=logging.INFO)
 
-  iAmHere = IAmHere()
-  signal.signal(signal.SIGINT, iAmHere.stop)
-  signal.signal(signal.SIGTERM, iAmHere.stop)
+  follw = Follw()
+  signal.signal(signal.SIGINT, follw.stop)
+  signal.signal(signal.SIGTERM, follw.stop)
 
-  iAmHere.oneshot = args.oneshot
-  iAmHere.interval = args.interval
-  iAmHere.location.wifiLocationLookup = args.wifiLocationLookup
+  follw.oneshot = args.oneshot
+  follw.interval = args.interval
+  follw.location.wifiLocationLookup = args.wifiLocationLookup
   if args.wigleToken:
-    iAmHere.location.wifiLocationLookup = True
-    iAmHere.location.wifiLocationProvider = 'wigle'
+    follw.location.wifiLocationLookup = True
+    follw.location.wifiLocationProvider = 'wigle'
     #ToDo Validate WiGLE token
-    iAmHere.location.wigleToken = args.wigleToken
-  iAmHere.location.ipLocationLookup = args.ipLocationLookup
-  iAmHere.location.ipLocationProvider = args.ipLocationProvider
+    follw.location.wigleToken = args.wigleToken
+  follw.location.ipLocationLookup = args.ipLocationLookup
+  follw.location.ipLocationProvider = args.ipLocationProvider
   # URL is validated by argparse
-  iAmHere.url = args.url
+  follw.url = args.url
 
-  if not iAmHere.oneshot:
-    logger.info("Starting iAmHere")
+  if not follw.oneshot:
+    logger.info("Starting follw")
 
   if foreground:
     try:
-      iAmHere.run()
+      follw.run()
     except (KeyboardInterrupt):
-      iAmHere.stop()
+      follw.stop()
   else:
     daemonize()
-    iAmHere.run()
+    follw.run()
 
 if __name__ == '__main__':
   main()
