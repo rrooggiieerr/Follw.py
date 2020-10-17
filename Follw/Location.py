@@ -87,10 +87,10 @@ class Location:
     if location:
       self.method="GPS"
 
-#     if not location:
-#       location = self.getCoreLocationLocation()
-#       if location:
-#         self.method="CoreLocation"
+    if not location:
+      location = self.getCoreLocationLocation()
+      if location:
+        self.method="CoreLocation"
 
     if not location:
       location = self.getLocationServicesLocation()
