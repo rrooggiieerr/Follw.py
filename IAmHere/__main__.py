@@ -1,5 +1,7 @@
-import os, sys, logging, signal, argparse
-import __init__ as IAmHere
+import os, sys, logging, signal, argparse, urllib.parse, platform, multiprocessing
+
+from IAmHere import IAmHere
+from Location import Location, wifiLocationConfigs, ipLocationConfigs
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -30,55 +32,92 @@ def daemonize():
   with open('/dev/null', 'r') as dev_null:
     os.dup2(dev_null.fileno(), sys.stdin.fileno())
 
-  # stderr - do this before stdout so that errors about setting stdout write to the log file.
-  #
-  # Exceptions raised after this point will be written to the log file.
-  sys.stderr.flush()
-  with open(stderr, 'a+') as stderr:
-    os.dup2(stderr.fileno(), sys.stderr.fileno())
+# Custom argparse validator for URLs
+def url(value):
+  parsedUrl = urllib.parse.urlparse(value)
+  if parsedUrl.scheme and parsedUrl.netloc:
+    return value
+  
+  raise argparse.ArgumentTypeError("%s is an invalid URL" % value)
 
-  # stdout
-  #
-  # Print statements after this step will not work. Use sys.stdout
-  # instead.
-  sys.stdout.flush()
-  with open(stdout, 'a+') as stdout:
-    os.dup2(stdout.fileno(), sys.stdout.fileno())
+class IntRange:
+  def __init__(self, min=None, max=None):
+    self.min = min
+    self.max = max
 
-if __name__ == '__main__':
+  def __call__(self, arg):
+    try:
+      value = int(arg)
+    except ValueError:
+      raise argparse.ArgumentTypeError("Must be an integer")
+
+    if (self.min is not None and value < self.min):
+      raise argparse.ArgumentTypeError(f"Must be an integer >= {self.min}")
+    if (self.max is not None and value > self.max):
+      raise argparse.ArgumentTypeError(f"Must be an integer <= {self.max}")
+
+    return value
+  
+def main():
   # Read command line arguments
   argparser = argparse.ArgumentParser()
-  argparser.add_argument('url')
+  argparser.add_argument('url', type=url)
   argparser.add_argument("-f", "--foreground", dest="foreground", action="store_const", const=True, default=False, help="Run process in the foreground")
-  argparser.add_argument("-i", "--interval", dest="interval", type=int, default=IAmHere.interval, help="Logging interval in seconds (default: %(default)s)")
-  argparser.add_argument("--nowifi", "--nowifilocationlookup", dest="wifiLocationLookup", action="store_const", const=False, default=True, help="Don't fall back to WiFi AP location lookup if other methods are unsuccessful")
-  argparser.add_argument("--noip", "--noiplocationlookup", dest="ipLocationLookup", action="store_const", const=False, default=True, help="Don't fall back to IP location lookup if other methods are unsuccessful")
-  argparser.add_argument("--iplocationprovider", dest="ipLocationProvider", choices=IAmHere.ipLocationConfigs.keys(), default=IAmHere.ipLocationProvider, help="Provider for IP location lookup (default: %(default)s)")
+  argparser.add_argument("--oneshot", dest="oneshot", action="store_const", const=True, default=False, help="Submit location only once")
+  argparser.add_argument("-i", "--interval", dest="interval", type=IntRange(0), default=IAmHere.interval, help="Logging interval in seconds (default: %(default)s)")
+  argparser.add_argument("--wifi", "--enablewifilocationlookup", dest="wifiLocationLookup", action="store_const", const=True, default=False, help="Enable WiFi location lookup if other methods are unsuccessful")
+  argparser.add_argument("--wifilocationprovider", dest="wifiLocationProvider", choices=wifiLocationConfigs.keys(), default=Location.wifiLocationProvider, help="Provider for WiFi location lookup (default: %(default)s)")
+  argparser.add_argument("--wigletoken", dest="wigleToken", default=None, help="Your WiGLE authentication token for WiFi location lookup")
+  argparser.add_argument("--ip", "--enableiplocationlookup", dest="ipLocationLookup", action="store_const", const=True, default=False, help="Enable IP location lookup if other methods are unsuccessful")
+  argparser.add_argument("--iplocationprovider", dest="ipLocationProvider", choices=ipLocationConfigs.keys(), default=Location.ipLocationProvider, help="Provider for IP location lookup (default: %(default)s)")
   args = argparser.parse_args()
 
-  if args.foreground:
+  foreground = False
+  if args.foreground or args.oneshot:
+    foreground = True
+
+  if foreground:
     logging.basicConfig(format='%(levelname)-8s %(message)s')
+    stdoutHandler = logging.StreamHandler(sys.stdout)
+    stdoutHandler.setLevel(logging.DEBUG)
+    stdoutHandler.addFilter(lambda record: record.levelno <= logging.INFO)
+    stderrHandler = logging.StreamHandler(sys.stderr)
+    stderrHandler.setLevel(logging.WARNING)
+    logger.addHandler(stdoutHandler)
+    logger.addHandler(stderrHandler)
+  #ToDo Where to log to when process is running in the background?
+  # A dedicated log file seems a bit overkill
   #else:
   #  logging.basicConfig(filename=logFile, format='%(asctime)s %(levelname)-8s %(name)s.%(funcName)s() %(message)s', datefmt='%x %X', level=logging.INFO)
 
-  logger.info("Starting IAmHere")
+  iAmHere = IAmHere()
+  signal.signal(signal.SIGINT, iAmHere.stop)
+  signal.signal(signal.SIGTERM, iAmHere.stop)
 
-  signal.signal(signal.SIGINT, IAmHere.stop)
-  signal.signal(signal.SIGTERM, IAmHere.stop)
+  iAmHere.oneshot = args.oneshot
+  iAmHere.interval = args.interval
+  iAmHere.location.wifiLocationLookup = args.wifiLocationLookup
+  if args.wigleToken:
+    iAmHere.location.wifiLocationLookup = True
+    iAmHere.location.wifiLocationProvider = 'wigle'
+    #ToDo Validate WiGLE token
+    iAmHere.location.wigleToken = args.wigleToken
+  iAmHere.location.ipLocationLookup = args.ipLocationLookup
+  iAmHere.location.ipLocationProvider = args.ipLocationProvider
+  # URL is validated by argparse
+  iAmHere.url = args.url
 
-  IAmHere.url = args.url
-  if args.interval:
-    IAmHere.interval = args.interval
-  IAmHere.wifiLocationLookup = args.wifiLocationLookup
-  IAmHere.ipLocationLookup = args.ipLocationLookup
-  if args.ipLocationProvider:
-    IAmHere.ipLocationProvider = args.ipLocationProvider
+  if not iAmHere.oneshot:
+    logger.info("Starting iAmHere")
 
-  if args.foreground:
+  if foreground:
     try:
-      IAmHere.run()
+      iAmHere.run()
     except (KeyboardInterrupt):
-      IAmHere.stop()
+      iAmHere.stop()
   else:
     daemonize()
-    IAmHere.run()
+    iAmHere.run()
+
+if __name__ == '__main__':
+  main()
