@@ -1,4 +1,5 @@
 import os, sys, logging, signal, argparse, urllib.parse, platform, multiprocessing
+import base64
 
 from Follw import Follw
 from Location import Location, wifiLocationConfigs, ipLocationConfigs
@@ -57,7 +58,18 @@ class IntRange:
       raise argparse.ArgumentTypeError("Must be an integer <= {}".format(self.max))
 
     return value
+
+def wigleToken(value):
+  try:
+    # Decode, then re-encode
+    # If the re-encoded string is equal to the encoded string, then it is base64 encoded.
+    if base64.b64encode(base64.b64decode(value)).decode() == value:
+      return value
+  except Exception as e:
+    pass
   
+  raise argparse.ArgumentTypeError("Not a valid WiGLE token")
+
 def main():
   # Read command line arguments
   argparser = argparse.ArgumentParser()
@@ -67,7 +79,7 @@ def main():
   argparser.add_argument("-i", "--interval", dest="interval", type=IntRange(0), default=Follw.interval, help="logging interval in seconds (default: %(default)s)")
   argparser.add_argument("--wifi", "--enablewifilocationlookup", dest="wifiLocationLookup", action="store_const", const=True, default=False, help="enable WiFi location lookup")
   argparser.add_argument("--wifilocationprovider", dest="wifiLocationProvider", choices=wifiLocationConfigs.keys(), default=Location.wifiLocationProvider, help="provider for WiFi location lookup (default: %(default)s)")
-  argparser.add_argument("--wigletoken", dest="wigleToken", default=None, help="your WiGLE authentication token for WiFi location lookup")
+  argparser.add_argument("--wigletoken", dest="wigleToken", type=wigleToken, default=None, help="your WiGLE authentication token for WiFi location lookup")
   argparser.add_argument("--ip", "--enableiplocationlookup", dest="ipLocationLookup", action="store_const", const=True, default=False, help="enable external IP address location lookup")
   argparser.add_argument("--iplocationprovider", dest="ipLocationProvider", choices=ipLocationConfigs.keys(), default=Location.ipLocationProvider, help="provider for external IP address location lookup (default: %(default)s)")
   args = argparser.parse_args()
@@ -100,7 +112,7 @@ def main():
   if args.wigleToken:
     follw.location.wifiLocationLookup = True
     follw.location.wifiLocationProvider = 'wigle'
-    #ToDo Validate WiGLE token
+    # WiGLE token is validated by argparse
     follw.location.wigleToken = args.wigleToken
   follw.location.ipLocationLookup = args.ipLocationLookup
   follw.location.ipLocationProvider = args.ipLocationProvider
@@ -108,7 +120,7 @@ def main():
   follw.url = args.url
 
   if not follw.oneshot:
-    logger.info("Starting follw")
+    logger.info("Starting Follw")
 
   if foreground:
     try:
