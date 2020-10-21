@@ -3,7 +3,8 @@ import sys, logging, signal, time, urllib.request, urllib.parse, json, os, platf
 from Location import Location
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
+#logger.setLevel(logging.DEBUG)
 
 class Follw:
   terminate = False
@@ -79,6 +80,7 @@ class Follw:
       url += '&di={}'.format(direction)
     if speed:
       url += '&sp={}'.format(speed)
+    logger.debug(url);
 
     try:
       urllib.request.urlopen(url, timeout=1)
@@ -86,8 +88,15 @@ class Follw:
       logger.info("Submitted location")
       return True
     except urllib.error.HTTPError as e:
-      logger.error(e.code)
-      logger.error(e.reason)
+      if e.code == 404:
+        logger.error("Follw share ID does not exist")
+        self.terminate = True
+      elif e.code == 410:
+        logger.error("Follw share ID is deleted")
+        self.terminate = True
+      else:
+        logger.error(e.code)
+        logger.error(e.reason)
     except urllib.error.URLError as e:
       logger.error(e.reason)
     except socket.timeout as e:
