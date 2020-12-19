@@ -128,8 +128,6 @@ class Location:
         if self.gpsd.waiting():
           # Get current location from GPS device
           report = self.gpsd.next()
-          if report.get('device') == '/dev/ttyACM0':
-            logger.debug(report)
           if report['class'] == 'DEVICES':
             self.nGPSDevices = len(report['devices'])
           elif report['class'] == 'DEVICE':
@@ -172,8 +170,8 @@ class Location:
                 
                 return location
   
-              logger.debug("Strange")
-              logger.debug(report)
+              logger.warning("No latitude or longitude in GPS report, this should not happen")
+              logger.warning(report)
           elif report['class'] == 'SKY':
             if 'satellites' not in report:
               logger.debug("No satellites in view")
@@ -187,13 +185,6 @@ class Location:
             _time = time.time()
         else:
           elapsedTime = time.time() - _time
-#          # GPSd sends messages every second, so that's how long we have to wait for a
-#           if elapsedTime > 1:
-#             if report:
-#               logger.debug(report['class'])
-#             else:
-#               logger.debug("None")
-#             logger.debug(elapsedTime)
           if self.nGPSDevices == 0:
             logger.warning("No GPS device connected")
             return None
