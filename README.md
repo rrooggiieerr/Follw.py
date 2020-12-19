@@ -12,7 +12,7 @@ Whenever you delete your unique Sharing ID all location details are removed from
 ## Location retrieval
 The Follw.app Python client tries to retrieve your device location depending on the Operating System abilities.
 
-For Linux and onder Unices GPSd in combination with a hardware GPS device can be used
+For Linux and other Unices GPSd in combination with a hardware GPS device can be used
 
 For OS X Core Location Service can be used. OS X will ask you to approve Python to use the Core Location Service.
 
@@ -40,7 +40,7 @@ If you are using GPSd and a hardware GPS device this needs to be properly config
 
 If you want to use Core Location on OS X the Python Core Location framework wrapper need to be installed. How to do this is not in the scope of this document.
 
-The Follw.app Python client will by default run in the background as a daemon on Unix like operating systems. This can be overrulled by using the `-f` or `--foreground` argument.
+The Follw.app Python client will by default run in the background as a daemon on Unix like operating systems. This can be overruled by using the `-f` or `--foreground` argument.
 
 ```
 usage: Follw [-h] [-f] [--oneshot] [-i INTERVAL] [--wifi] [--wifilocationprovider {yandex,wigle}] [--wigletoken WIGLETOKEN] [--ip]
