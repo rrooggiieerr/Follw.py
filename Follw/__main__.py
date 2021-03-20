@@ -38,7 +38,7 @@ def url(value):
   parsedUrl = urllib.parse.urlparse(value)
   if parsedUrl.scheme and parsedUrl.netloc:
     return value
-  
+
   raise argparse.ArgumentTypeError("%s is an invalid URL" % value)
 
 class IntRange:
@@ -67,7 +67,7 @@ def wigleToken(value):
       return value
   except Exception as e:
     pass
-  
+
   raise argparse.ArgumentTypeError("Not a valid WiGLE token")
 
 def main():
@@ -79,9 +79,13 @@ def main():
   argparser.add_argument("-i", "--interval", dest="interval", type=IntRange(0), default=Follw.interval, help="logging interval in seconds (default: %(default)s)")
   argparser.add_argument("--wifi", "--enablewifilocationlookup", dest="wifiLocationLookup", action="store_const", const=True, default=False, help="enable WiFi location lookup")
   argparser.add_argument("--wifilocationprovider", dest="wifiLocationProvider", choices=wifiLocationConfigs.keys(), default=Location.wifiLocationProvider, help="provider for WiFi location lookup (default: %(default)s)")
+  argparser.add_argument("--wifiapikey", dest="wifiAPIKey", default=None, help="")
   argparser.add_argument("--wigletoken", dest="wigleToken", type=wigleToken, default=None, help="your WiGLE authentication token for WiFi location lookup")
+  argparser.add_argument("--mlsapikey", dest="mlsAPIKey", default=None, help="your Mozilla Location Service API key")
+  argparser.add_argument("--glsapikey", dest="glsAPIKey", default=None, help="your Google Location Service API key")
   argparser.add_argument("--ip", "--enableiplocationlookup", dest="ipLocationLookup", action="store_const", const=True, default=False, help="enable external IP address location lookup")
   argparser.add_argument("--iplocationprovider", dest="ipLocationProvider", choices=ipLocationConfigs.keys(), default=Location.ipLocationProvider, help="provider for external IP address location lookup (default: %(default)s)")
+  argparser.add_argument("--debug", dest="debug", action="store_const", const=True, default=False, help="Show debugging messages")
   args = argparser.parse_args()
 
   foreground = False
@@ -92,6 +96,8 @@ def main():
     logging.basicConfig(format='%(levelname)-8s %(message)s')
     stdoutHandler = logging.StreamHandler(sys.stdout)
     stdoutHandler.setLevel(logging.DEBUG)
+    if not args.debug:
+      logging.disable(logging.DEBUG)
     stdoutHandler.addFilter(lambda record: record.levelno <= logging.INFO)
     stderrHandler = logging.StreamHandler(sys.stderr)
     stderrHandler.setLevel(logging.WARNING)
@@ -108,14 +114,27 @@ def main():
 
   follw.oneshot = args.oneshot
   follw.interval = args.interval
+
   follw.location.wifiLocationLookup = args.wifiLocationLookup
+  follw.location.wifiLocationProvider = args.wifiLocationProvider
+  follw.location.wifiAPIKey = args.wifiAPIKey
   if args.wigleToken:
     follw.location.wifiLocationLookup = True
     follw.location.wifiLocationProvider = 'wigle'
     # WiGLE token is validated by argparse
-    follw.location.wigleToken = args.wigleToken
+    follw.location.wifiAPIKey = args.wigleToken
+  if args.mlsAPIKey:
+    follw.location.wifiLocationLookup = True
+    follw.location.wifiLocationProvider = 'mls'
+    follw.location.wifiAPIKey = args.mlsAPIKey
+  if args.glsAPIKey:
+    follw.location.wifiLocationLookup = True
+    follw.location.wifiLocationProvider = 'gls'
+    follw.location.wifiAPIKey = args.mlsAPIKey
+
   follw.location.ipLocationLookup = args.ipLocationLookup
   follw.location.ipLocationProvider = args.ipLocationProvider
+
   # URL is validated by argparse
   follw.url = args.url
 

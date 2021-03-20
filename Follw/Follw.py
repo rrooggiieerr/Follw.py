@@ -1,10 +1,8 @@
 import sys, logging, signal, time, urllib.request, urllib.parse, json, os, platform, re, argparse, socket
-
 from Location import Location
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 class Follw:
   terminate = False
@@ -12,7 +10,7 @@ class Follw:
   interval = 5
   oneshot = False
   online = True
-  
+
   location = None
 
   def __init__(self):
@@ -24,10 +22,10 @@ class Follw:
     self.terminate = True
     self.location.stop()
 
-  def online(self, online = True):  
+  def online(self, online = True):
     self.online = online
 
-  def offline(self, offline = True):  
+  def offline(self, offline = True):
     self.online = not online
 
   def run(self):
@@ -36,24 +34,23 @@ class Follw:
     _time = 0
     while not self.terminate:
       location = None
-  
+
       elapsedTime = time.time() - _time
       if elapsedTime > self.interval:
         location = self.location.getLocation()
-  
+
         if location and location != previousLocation:
           if self.submitLocation(*location):
-            if self.oneshot:
-              break
-     
             previousLocation = location
             _time = time.time()
-    
+
+        if self.oneshot:
+          break
       time.sleep(0.1)
-  
+
     if self.terminate:
       logger.info("Stopped Follw")
-  
+
   def submitLocation(self, latitude, longitude, accuracy = None, altitude = None, direction = None, speed = None):
     parsedUrl = urllib.parse.urlparse(self.url)
 
@@ -84,7 +81,7 @@ class Follw:
 
     try:
       urllib.request.urlopen(url, timeout=1)
-  
+
       logger.info("Submitted location")
       return True
     except urllib.error.HTTPError as e:
@@ -101,5 +98,5 @@ class Follw:
       logger.error(e.reason)
     except socket.timeout as e:
       logger.error(e)
-      
+
     return False
