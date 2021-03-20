@@ -130,7 +130,7 @@ def main():
   if args.glsAPIKey:
     follw.location.wifiLocationLookup = True
     follw.location.wifiLocationProvider = 'gls'
-    follw.location.wifiAPIKey = args.mlsAPIKey
+    follw.location.wifiAPIKey = args.glsAPIKey
 
   follw.location.ipLocationLookup = args.ipLocationLookup
   follw.location.ipLocationProvider = args.ipLocationProvider
