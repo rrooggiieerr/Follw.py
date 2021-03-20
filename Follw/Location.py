@@ -42,7 +42,8 @@ ipLocationConfigs = {
   'ip-api.com': { 'url': 'http://ip-api.com/json/?fields=49344', 'latitudeKey': 'lat', 'longitudeKey': 'lon', 'interval': 60/45},
   'ipapi.co': { 'url': 'https://ipapi.co/json/', 'latitudeKey': 'latitude', 'longitudeKey': 'longitude', 'interval': (60*60*24)/1000},
   'extreme-ip-lookup.com': { 'url': 'https://extreme-ip-lookup.com/json/', 'latitudeKey': 'lat', 'longitudeKey': 'lon', 'interval': (60*60*24*31)/10000},
-  'ipwhois.io': { 'url': 'https://ipwhois.app/json/?objects=latitude,longitude', 'latitudeKey': 'latitude', 'longitudeKey': 'longitude', 'interval': (60*60*24*31)/10000}
+  'ipwhois.io': { 'url': 'https://ipwhois.app/json/?objects=latitude,longitude', 'latitudeKey': 'latitude', 'longitudeKey': 'longitude', 'interval': (60*60*24*31)/10000},
+  'geoplugin.net': {'url': 'http://www.geoplugin.net/json.gp', 'latitudeKey': 'geoplugin_latitude', 'longitudeKey': 'geoplugin_longitude', 'accuracyKey': 'geoplugin_locationAccuracyRadius', 'interval': (60*60*24)/100000}
   }
 
 class Location:
@@ -414,8 +415,18 @@ class Location:
           data = response.read().decode(response.headers.get_content_charset(failobj = 'utf-8'))
           logger.debug(data)
           data = json.loads(data)
-          location = [ data.get(self.ipLocationConfig['latitudeKey']), data.get(self.ipLocationConfig['longitudeKey']) ]
+
+          latitude = data.get(self.ipLocationConfig['latitudeKey'])
+          longitude = data.get(self.ipLocationConfig['longitudeKey'])
+          location = [latitude , longitude]
+          accuracy = None
+          if 'accuracyKey' in self.ipLocationConfig:
+            accuracy = data.get(self.ipLocationConfig['accuracyKey'], None)
+          if accuracy:
+            location.append(accuracy)
+
           self.lastIPLocationLookup = time.time()
+
           return location
       except urllib.error.URLError as e:
         logger.error(e.reason)
